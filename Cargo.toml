@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 rawloader = "0.37.1"
+vulkano = "0.35.2"
+vulkano-shaders = "0.35.0"

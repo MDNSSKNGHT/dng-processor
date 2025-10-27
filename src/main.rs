@@ -1,5 +1,8 @@
-use std::sync::Arc;
+use std::{slice, sync::Arc};
 
+use libheif_rs::{
+    Channel, ColorSpace, CompressionFormat, EncoderQuality, HeifContext, LibHeif, RgbChroma,
+};
 use vulkano::{
     VulkanLibrary,
     buffer::{Buffer, BufferCreateInfo, BufferUsage},
@@ -274,5 +277,33 @@ fn main() {
         buffer
     };
 
-    println!("{:?}", rgba_buffer.read().unwrap());
+    // Encode
+    let mut image =
+        libheif_rs::Image::new(width, height, ColorSpace::Rgb(RgbChroma::HdrRgbaLe)).unwrap();
+    image
+        .create_plane(Channel::Interleaved, width, height, 12)
+        .unwrap();
+
+    let planes = image.planes_mut();
+    unsafe {
+        let data = rgba_buffer.read().unwrap();
+
+        planes
+            .interleaved
+            .unwrap()
+            .data
+            .copy_from_slice(slice::from_raw_parts(
+                data.as_ptr() as *const u8,
+                data.len() * 2,
+            ));
+    }
+
+    let lib_heif = LibHeif::new();
+    let mut context = HeifContext::new().unwrap();
+    let mut encoder = lib_heif
+        .encoder_for_format(CompressionFormat::Hevc)
+        .unwrap();
+    encoder.set_quality(EncoderQuality::LossLess).unwrap();
+    context.encode_image(&image, &mut encoder, None).unwrap();
+    context.write_to_file("image.heic").unwrap();
 }
